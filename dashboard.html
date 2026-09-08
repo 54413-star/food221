@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FoodGuard - Dashboard</title>
+  <link rel="stylesheet" href="css/main.css">
+</head>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#2e7d32">
+<link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/2927/2927347.png">
+<body>
+  <header class="app-header">
+    <h3>🥑 FoodGuard</h3>
+    <div style="display: flex; align-items: center; gap: 8px;">
+      <span id="user-name" style="font-size: 0.85rem;">กำลังโหลด...</span>
+      <button id="btn-logout" style="background: none; border: none; font-size: 0.8rem; color: var(--danger); cursor: pointer;">(ออกจากระบบ)</button>
+    </div>
+  </header>
+
+  <main class="container">
+    <!-- Summary Cards -->
+    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 16px;">
+      <div class="card" style="text-align: center; padding: 12px; cursor: pointer;" id="filter-all">
+        <div id="count-total" style="font-size: 1.2rem; font-weight: bold;">0</div>
+        <div style="font-size: 0.75rem; color: var(--text-muted);">ทั้งหมด</div>
+      </div>
+      <div class="card" style="text-align: center; padding: 12px; border-color: var(--warning); cursor: pointer;" id="filter-near">
+        <div id="count-near" style="font-size: 1.2rem; font-weight: bold; color: var(--warning);">0</div>
+        <div style="font-size: 0.75rem; color: var(--text-muted);">ใกล้หมดอายุ</div>
+      </div>
+      <div class="card" style="text-align: center; padding: 12px; border-color: var(--danger); cursor: pointer;" id="filter-expired">
+        <div id="count-expired" style="font-size: 1.2rem; font-weight: bold; color: var(--danger);">0</div>
+        <div style="font-size: 0.75rem; color: var(--text-muted);">หมดอายุแล้ว</div>
+      </div>
+    </div>
+
+    <!-- Search Box -->
+    <div style="margin-bottom: 12px;">
+      <input type="text" id="search-input" placeholder="🔍 ค้นหาชื่ออาหาร..." style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border);">
+    </div>
+
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+      <h4 id="list-title" style="margin: 0;">รายการอาหารทั้งหมด</h4>
+      <button id="btn-notify-perm" style="font-size: 0.75rem; background: #eef7ee; color: var(--primary-dark); border: 1px solid var(--primary-light); padding: 4px 8px; border-radius: 4px; cursor: pointer;">🔔 เปิดแจ้งเตือน</button>
+    </div>
+
+    <div id="food-list-container">
+      <div class="card" style="text-align: center; color: var(--text-muted); padding: 24px;">กำลังโหลดข้อมูล...</div>
+    </div>
+  </main>
+
+  <nav class="bottom-nav">
+    <a href="dashboard.html" class="nav-item active">🏠 หน้าหลัก</a>
+    <a href="food-list.html" class="nav-item">📋 รายการ</a>
+    <a href="add-food.html" class="nav-item">➕ เพิ่มอาหาร</a>
+    <a href="recipes.html" class="nav-item">🍳 เมนูอาหาร</a>
+    <a href="settings.html" class="nav-item">⚙️ ตั้งค่า</a>
+  </nav>
+
+  <script type="module">
+    import { requireAuth, logout } from './js/auth.js';
+    import { getFoodsByUser } from './js/foods.js';
+    import { calculateRemainingDays, evaluateFoodStatus } from './js/expiration.js';
+    import { requestNotificationPermission, checkAndSendNotifications } from './js/notifications.js';
+
+    let allFoods = [];
+    let currentFilter = 'ALL';
+
+    requireAuth(async (user) => {
+      document.getElementById('user-name').textContent = user.displayName || user.email;
+      
+      const foods = await getFoodsByUser(user.uid);
+      allFoods = foods.filter(f => f.status === 'ACTIVE').map(food => {
+        const remainingDays = calculateRemainingDays(food.expirationDate);
+        return {
+          ...food,
+          remainingDays,
+          statusInfo: evaluateFoodStatus(remainingDays)
+        };
+      });
+
+      updateSummaryCounts();
+      renderList();
+
+      // ตรวจสอบและส่งการแจ้งเตือน
+      checkAndSendNotifications(allFoods);
+    });
+
+    function updateSummaryCounts() {
+      const total = allFoods.length;
+      const near = allFoods.filter(f => f.statusInfo.code === 'NEAR_EXPIRY').length;
+      const expired = allFoods.filter(f => f.statusInfo.code === 'EXPIRED').length;
+
+      document.getElementById('count-total').textContent = total;
+      document.getElementById('count-near').textContent = near;
+      document.getElementById('count-expired').textContent = expired;
+    }
+
+    function renderList() {
+      const searchTerm = document.getElementById('search-input').value.toLowerCase();
+      const container = document.getElementById('food-list-container');
+
+      let filtered = allFoods.filter(f => f.name.toLowerCase().includes(searchTerm));
+
+      if (currentFilter === 'NEAR_EXPIRY') {
+        filtered = filtered.filter(f => f.statusInfo.code === 'NEAR_EXPIRY');
+      } else if (currentFilter === 'EXPIRED') {
+        filtered = filtered.filter(f => f.statusInfo.code === 'EXPIRED');
+      }
+
+      if (filtered.length === 0) {
+        container.innerHTML = `<div class="card" style="text-align: center; color: var(--text-muted); padding: 20px;">ไม่พบรายการอาหาร</div>`;
+        return;
+      }
+
+      container.innerHTML = filtered.map(food => `
+        <div class="card" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <div>
+            <strong>${food.name}</strong>
+            <div style="font-size: 0.8rem; color: var(--text-muted);">จำนวน: ${food.quantity} ${food.unit} | หมดอายุ: ${food.expirationDate}</div>
+          </div>
+          <span class="badge ${food.statusInfo.class}">${food.statusInfo.label}</span>
+        </div>
+      `).join('');
+    }
+
+    // Filter Events
+    document.getElementById('filter-all').addEventListener('click', () => { currentFilter = 'ALL'; renderList(); });
+    document.getElementById('filter-near').addEventListener('click', () => { currentFilter = 'NEAR_EXPIRY'; renderList(); });
+    document.getElementById('filter-expired').addEventListener('click', () => { currentFilter = 'EXPIRED'; renderList(); });
+    document.getElementById('search-input').addEventListener('input', renderList);
+
+    // Notification Permission Event
+    document.getElementById('btn-notify-perm').addEventListener('click', async () => {
+      const granted = await requestNotificationPermission();
+      if (granted) {
+        alert("เปิดการแจ้งเตือนสำเร็จ!");
+        checkAndSendNotifications(allFoods);
+      } else {
+        alert("ไม่ได้รับสิทธิ์การแจ้งเตือน");
+      }
+    });
+
+    document.getElementById('btn-logout').addEventListener('click', logout);
+  </script>
+</body>
+</html>

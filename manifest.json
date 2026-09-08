@@ -1,0 +1,21 @@
+{
+  "short_name": "FoodGuard",
+  "name": "FoodGuard - Food Management & Expiration Tracking",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/2927/2927347.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/2927/2927347.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": "/dashboard.html",
+  "background_color": "#ffffff",
+  "theme_color": "#2e7d32",
+  "display": "standalone",
+  "orientation": "portrait"
+}

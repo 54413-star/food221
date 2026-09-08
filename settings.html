@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FoodGuard - ตั้งค่า</title>
+  <link rel="stylesheet" href="css/main.css">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#2e7d32">
+  <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/2927/2927347.png">
+  <style>
+    .profile-card {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+    .profile-avatar {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background: #e0e0e0;
+      object-fit: cover;
+    }
+    .setting-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .setting-item:last-child {
+      border-bottom: none;
+    }
+  </style>
+</head>
+<body>
+  <header class="app-header">
+    <h3>⚙️ ตั้งค่าระบบ</h3>
+  </header>
+
+  <main class="container">
+    <!-- User Profile Header -->
+    <div class="card profile-card">
+      <img id="user-avatar" class="profile-avatar" src="https://cdn-icons-png.flaticon.com/512/847/847969.png" alt="User Profile">
+      <div>
+        <strong id="user-name-display" style="font-size: 1.05rem; display: block;">ผู้ใช้งาน</strong>
+        <span id="user-email" style="font-size: 0.85rem; color: var(--text-muted);">loading...</span>
+      </div>
+    </div>
+
+    <!-- Notification Settings -->
+    <div class="card" style="margin-bottom: 16px;">
+      <h4 style="margin-bottom: 12px; font-size: 0.95rem;">🔔 การแจ้งเตือน</h4>
+      <div class="setting-item">
+        <div>
+          <div style="font-size: 0.9rem; font-weight: 500;">แจ้งเตือนวันหมดอายุ</div>
+          <div id="notify-status" style="font-size: 0.75rem; color: var(--text-muted);">กำลังตรวจสอบ...</div>
+        </div>
+        <button id="btn-toggle-notify" class="btn" style="width: auto; padding: 6px 12px; font-size: 0.8rem;">ตั้งค่า</button>
+      </div>
+    </div>
+
+    <!-- App Info & Account Actions -->
+    <div class="card" style="margin-bottom: 16px;">
+      <h4 style="margin-bottom: 12px; font-size: 0.95rem;">ℹ️ เกี่ยวกับแอปพลิเคชัน</h4>
+      <div class="setting-item">
+        <span style="font-size: 0.9rem;">เวอร์ชัน</span>
+        <span style="font-size: 0.85rem; color: var(--text-muted);">1.0.0 (PWA)</span>
+      </div>
+      <div class="setting-item">
+        <span style="font-size: 0.9rem;">ฐานข้อมูล</span>
+        <span style="font-size: 0.85rem; color: var(--text-muted);">Cloud Firestore</span>
+      </div>
+    </div>
+
+    <!-- Logout Button -->
+    <button id="btn-logout-settings" class="btn btn-secondary" style="background-color: #fff0f0; color: var(--danger); border: 1px solid #ffcdd2;">
+      🚪 ออกจากระบบ
+    </button>
+  </main>
+
+  <!-- Bottom Navigation -->
+  <nav class="bottom-nav">
+    <a href="dashboard.html" class="nav-item">🏠 หน้าหลัก</a>
+    <a href="food-list.html" class="nav-item">📋 รายการ</a>
+    <a href="add-food.html" class="nav-item">➕ เพิ่มอาหาร</a>
+    <a href="recipes.html" class="nav-item">🍳 เมนูอาหาร</a>
+    <a href="settings.html" class="nav-item active">⚙️ ตั้งค่า</a>
+  </nav>
+
+  <script type="module">
+    import { requireAuth } from './js/auth.js';
+    import { initSettingsPage } from './js/settings.js';
+
+    requireAuth(() => {
+      initSettingsPage();
+    });
+
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js').catch(err => console.error(err));
+      });
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#2e7d32">
+<link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/2927/2927347.png">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FoodGuard - แนะนำเมนูอาหาร</title>
+  <link rel="stylesheet" href="css/main.css">
+</head>
+<body>
+  <header class="app-header">
+    <h3>🍳 เมนูแนะนำจากตู้เย็น</h3>
+  </header>
+
+  <main class="container">
+    <div id="recipe-container">
+      <div class="card" style="text-align: center; color: var(--text-muted); padding: 24px;">กำลังคำนวณวัตถุดิบในตู้เย็น...</div>
+    </div>
+  </main>
+
+  <nav class="bottom-nav">
+    <a href="dashboard.html" class="nav-item">🏠 หน้าหลัก</a>
+    <a href="food-list.html" class="nav-item">📋 รายการ</a>
+    <a href="add-food.html" class="nav-item">➕ เพิ่มอาหาร</a>
+    <a href="recipes.html" class="nav-item active">🍳 เมนูอาหาร</a>
+    <a href="settings.html" class="nav-item">⚙️ ตั้งค่า</a>
+  </nav>
+
+  <script type="module">
+    import { requireAuth } from './js/auth.js';
+    import { getFoodsByUser } from './js/foods.js';
+    import { recommendRecipes } from './js/recipes-data.js';
+
+    requireAuth(async (user) => {
+      const container = document.getElementById('recipe-container');
+      try {
+        const foods = await getFoodsByUser(user.uid);
+        const recommendations = recommendRecipes(foods);
+
+        if (recommendations.length === 0) {
+          container.innerHTML = `
+            <div class="card" style="text-align: center; padding: 24px; color: var(--text-muted);">
+              ยังไม่มีสูตรอาหารที่ตรงกับวัตถุดิบในตู้เย็นของคุณ <br><br>
+              ลองเพิ่มรายการอาหารสดหรือวัตถุดิบเพิ่มเติมในหน้ารายการ
+            </div>`;
+          return;
+        }
+
+        container.innerHTML = recommendations.map(recipe => `
+          <div class="card" style="margin-bottom: 12px;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+              <strong style="font-size: 1.1rem;">${recipe.name}</strong>
+              <span class="badge badge-safe" style="background: #eef7ee; color: var(--primary-dark);">
+                เข้ากัน ${recipe.matchPercent}%
+              </span>
+            </div>
+            <div style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 8px;">
+              <strong>วัตถุดิบที่คุณมี:</strong> ${recipe.matchedIngredients.join(', ')}
+            </div>
+            <div style="font-size: 0.85rem; background: #fafafa; padding: 8px; border-radius: 6px; border: 1px solid var(--border);">
+              <strong>วิธีทำ:</strong> ${recipe.steps}
+            </div>
+          </div>
+        `).join('');
+
+      } catch (err) {
+        container.innerHTML = `<p style="color: var(--danger);">เกิดข้อผิดพลาดในการโหลดเมนูอาหาร</p>`;
+      }
+    });
+  </script>
+</body>
+</html>

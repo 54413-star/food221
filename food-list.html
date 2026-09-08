@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#2e7d32">
+<link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/2927/2927347.png">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FoodGuard - รายการอาหาร</title>
+  <link rel="stylesheet" href="css/main.css">
+</head>
+<body>
+  <header class="app-header">
+    <h3>📋 รายการอาหารทั้งหมด</h3>
+  </header>
+
+  <main class="container">
+    <div id="food-container">
+      <p style="text-align: center; color: var(--text-muted); margin-top: 24px;">กำลังโหลดข้อมูล...</p>
+    </div>
+  </main>
+
+  <nav class="bottom-nav">
+    <a href="dashboard.html" class="nav-item">🏠 หน้าหลัก</a>
+    <a href="food-list.html" class="nav-item active">📋 รายการ</a>
+    <a href="add-food.html" class="nav-item">➕ เพิ่มอาหาร</a>
+    <a href="recipes.html" class="nav-item">🍳 เมนูอาหาร</a>
+    <a href="settings.html" class="nav-item">⚙️ ตั้งค่า</a>
+  </nav>
+
+  <script type="module">
+    import { requireAuth } from './js/auth.js';
+    import { getFoodsByUser, deleteFood, updateFoodStatus } from './js/foods.js';
+
+    let currentUserId = null;
+
+    requireAuth(async (user) => {
+      currentUserId = user.uid;
+      await loadFoodList();
+    });
+
+    async function loadFoodList() {
+      const container = document.getElementById('food-container');
+      try {
+        const foods = await getFoodsByUser(currentUserId);
+        const activeFoods = foods.filter(f => f.status === 'ACTIVE');
+
+        if (activeFoods.length === 0) {
+          container.innerHTML = `
+            <div class="card" style="text-align: center; padding: 24px; color: var(--text-muted);">
+              ไม่มีรายการอาหารในระบบ <br><br>
+              <a href="add-food.html" class="btn" style="display: inline-block; width: auto; padding: 8px 16px;">➕ เพิ่มอาหารรายการแรก</a>
+            </div>`;
+          return;
+        }
+
+        container.innerHTML = activeFoods.map(food => `
+          <div class="card" style="margin-bottom: 12px;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+              <div>
+                <strong style="font-size: 1.05rem;">${food.name}</strong>
+                <div style="font-size: 0.85rem; color: var(--text-muted);">
+                  จำนวน: ${food.quantity} ${food.unit} | หมวด: ${food.category}
+                </div>
+                <div style="font-size: 0.85rem; color: var(--danger); font-weight: 500; margin-top: 4px;">
+                  หมดอายุ: ${food.expirationDate}
+                </div>
+              </div>
+              <button class="btn-delete" data-id="${food.id}" style="background: none; border: none; color: var(--danger); cursor: pointer; font-size: 0.8rem;">🗑️ ลบ</button>
+            </div>
+            <div style="display: flex; gap: 8px; margin-top: 12px;">
+              <button class="btn-status btn" data-id="${food.id}" data-status="CONSUMED" style="padding: 6px; font-size: 0.8rem; background-color: var(--primary-light);">✅ กินแล้ว</button>
+              <button class="btn-status btn btn-secondary" data-id="${food.id}" data-status="DISCARDED" style="padding: 6px; font-size: 0.8rem;">🗑️ ทิ้งแล้ว</button>
+            </div>
+          </div>
+        `).join('');
+
+        // Event listener สำหรับปุ่มลบ
+        document.querySelectorAll('.btn-delete').forEach(btn => {
+          btn.addEventListener('click', async (e) => {
+            if (confirm("คุณต้องการลบรายการนี้ใช่หรือไม่?")) {
+              await deleteFood(e.target.dataset.id);
+              loadFoodList();
+            }
+          });
+        });
+
+        // Event listener สำหรับปุ่มเปลี่ยนสถานะ (กินแล้ว / ทิ้งแล้ว)
+        document.querySelectorAll('.btn-status').forEach(btn => {
+          btn.addEventListener('click', async (e) => {
+            const foodId = e.target.dataset.id;
+            const newStatus = e.target.dataset.status;
+            await updateFoodStatus(foodId, newStatus);
+            loadFoodList();
+          });
+        });
+
+      } catch (err) {
+        container.innerHTML = `<p style="color: var(--danger);">เกิดข้อผิดพลาดในการดึงข้อมูล</p>`;
+      }
+    }
+  </script>
+</body>
+</html>

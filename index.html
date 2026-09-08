@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#2e7d32">
+<link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/2927/2927347.png">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FoodGuard - เข้าสู่ระบบ</title>
+  <link rel="stylesheet" href="css/main.css">
+</head>
+<body>
+  <div class="container" style="text-align: center; margin-top: 20%;">
+    <div class="card">
+      <h1 style="color: var(--primary); margin-bottom: 8px;">🥑 FoodGuard</h1>
+      <p style="color: var(--text-muted); margin-bottom: 24px;">ช่วยจัดการอาหาร ลดการลืมวันหมดอายุ และลด Food Waste</p>
+      
+      <button id="btn-google-login" class="btn" style="background-color: #4285F4; display: flex; align-items: center; justify-content: center; gap: 8px;">
+        <span>Sign in with Google</span>
+      </button>
+      <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 16px;">*โปรเจกต์สาธิตระดับมัธยมศึกษาตอนปลาย</p>
+    </div>
+  </div>
+
+  <script type="module">
+    import { loginWithGoogle } from './js/auth.js';
+    import { auth } from './js/firebase-config.js';
+    import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+
+    // ถ้าล็อกอินอยู่อยู่แล้ว ให้ข้ามไปหน้า dashboard ทันที
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        window.location.href = "dashboard.html";
+      }
+    });
+
+    document.getElementById('btn-google-login').addEventListener('click', loginWithGoogle);
+  </script>
+</body>
+</html>

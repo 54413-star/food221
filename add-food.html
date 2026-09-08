@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#2e7d32">
+<link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/2927/2927347.png">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FoodGuard - เพิ่มอาหาร</title>
+  <link rel="stylesheet" href="css/main.css">
+  <!-- โหลด Tesseract.js ผ่าน CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+  <style>
+    .image-preview-box {
+      width: 100%;
+      height: 180px;
+      border: 2px dashed var(--border);
+      border-radius: var(--radius);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 12px;
+      overflow: hidden;
+      background: #fafafa;
+      position: relative;
+      cursor: pointer;
+    }
+    .image-preview-box img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .ocr-status {
+      font-size: 0.8rem;
+      color: var(--primary-dark);
+      margin-bottom: 12px;
+      text-align: center;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <header class="app-header">
+    <h3>➕ เพิ่มรายการอาหาร</h3>
+  </header>
+
+  <main class="container">
+    <div class="card">
+      <!-- Camera / File Upload Box -->
+      <div class="image-preview-box" id="preview-container">
+        <span id="preview-text" style="color: var(--text-muted); font-size: 0.9rem;">📷 แตะเพื่อถ่ายรูป / สแกนวันหมดอายุ</span>
+        <img id="image-preview" src="" style="display: none;">
+      </div>
+      <input type="file" id="camera-input" accept="image/*" capture="environment" style="display: none;">
+
+      <!-- Status สแกน OCR -->
+      <div id="ocr-status" class="ocr-status">🔍 กำลังสแกนอ่านวันหมดอายุ... (<span id="ocr-progress">0</span>%)</div>
+
+      <!-- Fresh Food Quick Selection Preset -->
+      <div style="margin-bottom: 16px; background: #eef7ee; padding: 10px; border-radius: 8px;">
+        <label style="display: block; font-size: 0.85rem; font-weight: bold; margin-bottom: 4px;">🥬 หรือเลือกจากตัวช่วยประเมินของสด:</label>
+        <select id="fresh-preset-select" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--border);">
+          <option value="">-- เลือกประเภทอาหารสด --</option>
+        </select>
+      </div>
+
+      <form id="form-add-food">
+        <div style="margin-bottom: 12px;">
+          <label style="display: block; font-size: 0.85rem; margin-bottom: 4px;">ชื่ออาหาร *</label>
+          <input type="text" id="food-name" required placeholder="เช่น นมสด, เนื้อหมู" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border);">
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px;">
+          <div>
+            <label style="display: block; font-size: 0.85rem; margin-bottom: 4px;">จำนวน</label>
+            <input type="number" id="food-qty" value="1" min="1" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border);">
+          </div>
+          <div>
+            <label style="display: block; font-size: 0.85rem; margin-bottom: 4px;">หน่วย</label>
+            <input type="text" id="food-unit" value="ชิ้น" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border);">
+          </div>
+        </div>
+
+        <!-- Expiration Type Selector -->
+        <div style="margin-bottom: 12px;">
+          <label style="display: block; font-size: 0.85rem; margin-bottom: 4px;">รูปแบบวันหมดอายุ</label>
+          <select id="exp-type" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border);">
+            <option value="EXACT">วันหมดอายุชัดเจน (บนฉลาก / OCR)</option>
+            <option value="ESTIMATED">ประเมินวันหมดอายุ (ของสด)</option>
+            <option value="AFTER_OPENING">บริโภคหลังเปิดบรรจุภัณฑ์</option>
+          </select>
+        </div>
+
+        <!-- Section สำหรับ AFTER_OPENING -->
+        <div id="after-opening-section" style="display: none; background: #f0f7f0; padding: 12px; border-radius: 8px; margin-bottom: 12px;">
+          <div style="margin-bottom: 8px;">
+            <label style="display: block; font-size: 0.8rem;">วันที่เปิดใช้งาน</label>
+            <input type="date" id="opened-date" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--border);">
+          </div>
+          <div>
+            <label style="display: block; font-size: 0.8rem;">ควรบริโภคภายใน (วัน)</label>
+            <input type="number" id="after-opening-days" value="3" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--border);">
+          </div>
+        </div>
+
+        <div style="margin-bottom: 16px;">
+          <label style="display: block; font-size: 0.85rem; margin-bottom: 4px;">วันหมดอายุ / วันที่ควรบริโภค *</label>
+          <input type="date" id="food-exp-date" required style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border);">
+        </div>
+
+        <button type="submit" id="btn-save" class="btn">💾 บันทึกข้อมูล</button>
+      </form>
+    </div>
+  </main>
+
+  <nav class="bottom-nav">
+    <a href="dashboard.html" class="nav-item">🏠 หน้าหลัก</a>
+    <a href="food-list.html" class="nav-item">📋 รายการ</a>
+    <a href="add-food.html" class="nav-item active">➕ เพิ่มอาหาร</a>
+    <a href="recipes.html" class="nav-item">🍳 เมนูอาหาร</a>
+    <a href="settings.html" class="nav-item">⚙️ ตั้งค่า</a>
+  </nav>
+
+  <script type="module">
+    import { requireAuth } from './js/auth.js';
+    import { addFood } from './js/foods.js';
+    import { calculateAfterOpeningExp } from './js/expiration.js';
+    import { FRESH_FOOD_DATABASE, getCalculatedFreshExpDate } from './js/fresh-food-data.js';
+    import { scanImageForDate } from './js/ocr-service.js';
+
+    let currentUserId = null;
+    let selectedSource = "MANUAL";
+
+    requireAuth((user) => { currentUserId = user.uid; });
+
+    // Populate Fresh Food Presets
+    const presetSelect = document.getElementById('fresh-preset-select');
+    FRESH_FOOD_DATABASE.forEach(item => {
+      const opt = document.createElement('option');
+      opt.value = item.id;
+      opt.textContent = `${item.name} (~${item.shelfLifeDays} วัน)`;
+      presetSelect.appendChild(opt);
+    });
+
+    // Handle Fresh Food Select Change
+    presetSelect.addEventListener('change', (e) => {
+      const selectedId = e.target.value;
+      if (!selectedId) return;
+
+      const item = FRESH_FOOD_DATABASE.find(f => f.id === selectedId);
+      if (item) {
+        document.getElementById('food-name').value = item.name;
+        document.getElementById('exp-type').value = "ESTIMATED";
+        document.getElementById('food-exp-date').value = getCalculatedFreshExpDate(item.shelfLifeDays);
+        document.getElementById('after-opening-section').style.display = 'none';
+        selectedSource = "FRESH_FOOD_DATABASE";
+      }
+    });
+
+    // Handle Camera & OCR Process
+    const previewContainer = document.getElementById('preview-container');
+    const cameraInput = document.getElementById('camera-input');
+    const imagePreview = document.getElementById('image-preview');
+    const previewText = document.getElementById('preview-text');
+    const ocrStatus = document.getElementById('ocr-status');
+    const ocrProgress = document.getElementById('ocr-progress');
+
+    previewContainer.addEventListener('click', () => cameraInput.click());
+
+    cameraInput.addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = async function(evt) {
+        const imageSrc = evt.target.result;
+        imagePreview.src = imageSrc;
+        imagePreview.style.display = 'block';
+        previewText.style.display = 'none';
+
+        // เริ่มต้นกระบวนการ OCR
+        ocrStatus.style.display = 'block';
+        ocrProgress.textContent = '0';
+
+        try {
+          const result = await scanImageForDate(imageSrc, (progress) => {
+            ocrProgress.textContent = progress;
+          });
+
+          if (result.extractedDate) {
+            document.getElementById('food-exp-date').value = result.extractedDate;
+            document.getElementById('exp-type').value = "EXACT";
+            selectedSource = "OCR";
+            alert(`✨ ตรวจพบวันหมดอายุจากภาพ: ${result.extractedDate}`);
+          } else {
+            alert("ไม่พบรูปแบบวันหมดอายุในภาพ โปรดระบุวันหมดอายุด้วยตนเอง");
+          }
+        } catch (err) {
+          console.error("OCR Error: ", err);
+        } finally {
+          ocrStatus.style.display = 'none';
+        }
+      }
+      reader.readAsDataURL(file);
+    });
+
+    // Handle Expiration Type Toggle
+    const expTypeSelect = document.getElementById('exp-type');
+    const afterOpeningSection = document.getElementById('after-opening-section');
+    const openedDateInput = document.getElementById('opened-date');
+    const afterDaysInput = document.getElementById('after-opening-days');
+    const expDateInput = document.getElementById('food-exp-date');
+
+    openedDateInput.value = new Date().toISOString().split('T')[0];
+
+    expTypeSelect.addEventListener('change', (e) => {
+      if (e.target.value === 'AFTER_OPENING') {
+        afterOpeningSection.style.display = 'block';
+        updateCalculatedExpDate();
+      } else {
+        afterOpeningSection.style.display = 'none';
+      }
+    });
+
+    function updateCalculatedExpDate() {
+      if (expTypeSelect.value === 'AFTER_OPENING') {
+        expDateInput.value = calculateAfterOpeningExp(openedDateInput.value, afterDaysInput.value);
+      }
+    }
+
+    openedDateInput.addEventListener('change', updateCalculatedExpDate);
+    afterDaysInput.addEventListener('input', updateCalculatedExpDate);
+
+    // Form Submit
+    document.getElementById('form-add-food').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (!currentUserId) return;
+
+      const btn = document.getElementById('btn-save');
+      btn.disabled = true;
+
+      const foodData = {
+        name: document.getElementById('food-name').value,
+        quantity: document.getElementById('food-qty').value,
+        unit: document.getElementById('food-unit').value,
+        expirationDate: expDateInput.value,
+        expirationType: expTypeSelect.value,
+        openedDate: expTypeSelect.value === 'AFTER_OPENING' ? openedDateInput.value : null,
+        estimatedDays: expTypeSelect.value === 'AFTER_OPENING' ? afterDaysInput.value : null,
+        source: selectedSource
+      };
+
+      try {
+        await addFood(currentUserId, foodData);
+        alert("บันทึกข้อมูลสำเร็จ!");
+        window.location.href = "food-list.html";
+      } catch (err) {
+        alert("เกิดข้อผิดพลาด: " + err.message);
+        btn.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>
